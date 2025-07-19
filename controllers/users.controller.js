@@ -1,11 +1,11 @@
-const User = require('../models/users.model');
+const UserModel = require('../models/users.model');
 const bcrypt = require('bcrypt');
 
 const getListedUsers = async (req, res) => {
 
   try {
 
-    const users = await User.find({}, { _id: 1, UserName: 1 });
+    const users = await UserModel.find({}, { _id: 1, UserName: 1 });
 
     const formatted = users.map(u => ({
       ID: u._id,
@@ -36,7 +36,7 @@ const loginUser = async (req, res) => {
   
     }
 
-    const user = await User.findOne({ UserName });
+    const user = await UserModel.findOne({ UserName });
 
     if (!user) {
 
@@ -84,7 +84,7 @@ const createUser = async (req, res) => {
 
   try {
 
-    const newUser = new User(formData);
+    const newUser = new UserModel(formData);
 
     await newUser.save();
 
@@ -111,6 +111,30 @@ const createUser = async (req, res) => {
 
 };
 
+const getUserByID = async (req, res) => {
+
+  try {
+
+    const user = await UserModel.findById(req.params.id).lean();
+
+    if (!user) {
+
+      return res.status(404).json({ message: 'User not found' });
+
+    }
+
+    res.json(user);
+
+  } catch (err) {
+
+    console.error('Failed to get user by ID:', err);
+
+    res.status(500).json({ message: 'Internal server error' });
+
+  }
+  
+};
+
 const updateUser = async (req, res) => {
   
   const { id } = req.params;
@@ -126,7 +150,7 @@ const updateUser = async (req, res) => {
 
   try {
 
-    const user = await User.findById(id);
+    const user = await UserModel.findById(id);
 
     if (!user) {
 
@@ -166,5 +190,6 @@ module.exports = {
   getListedUsers,
   loginUser,
   createUser,
+  getUserByID,
   updateUser
 }

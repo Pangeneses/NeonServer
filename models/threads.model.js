@@ -2,35 +2,35 @@ const mongoose = require("mongoose");
 
 const Schema = mongoose.Schema;
 
-const ArticleSchema = new Schema({
+const ThreadSchema = new Schema({
   AuthorID: {
     type: Schema.Types.ObjectId,
     ref: 'UserModel',
     required: true
   },
-  ArticleTitle: {
+  ThreadTitle: {
     type: String,
-    required: [true, `Article requires title.`],
+    required: [true, `Thread requires title.`],
     trim: true,
     validate: {
         validator: function(v) {
             return /^[a-zA-Z0-9-; ]+$/.test(v);
         },
-        message: props => `Article title shouldn't include special characters.`
+        message: props => `Thread title shouldn't include special characters.`
     }
   },
-  ArticleBody: {
+  ThreadBody: {
     type: String,
-    required: [true, `Article requires content.`],
+    required: [true, `Thread requires content.`],
     trim: true,
     validate: {
       validator: function (v) {
         if (!v || v.length < 500) return false;
       },
-      message: props => `Article must be at least 500 characters and must not contain XML, JavaScript, or HTML tags.`
+      message: props => `Thread must be at least 500 characters and must not contain XML, JavaScript, or HTML tags.`
     }
   },
-  ArticleImage: {
+  ThreadImage: {
     type: String,
     required: false,
     trim: true, 
@@ -38,20 +38,20 @@ const ArticleSchema = new Schema({
       validator: function (v) {
         return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(webp|jpg)$/i.test(v);
       },
-      message: props => `ArticleImage must be a UUID with .webp or .jpg extension.`
+      message: props => `ThreadImage must be a UUID with .webp or .jpg extension.`
     },
     default: "d741b779-9c57-472a-a983-5c1dcaef7426.webp"
   },
-  ArticleDate: {
+  ThreadDate: {
     type: Date,
     default: Date.now,
     immutable: true
   },
-  ArticleCategory: { 
+  ThreadCategory: { 
     type: String, 
     required: true,
   },
-  ArticleHashtags: {
+  ThreadHashtags: {
     type: [String],
     required: true,
     validate: {
@@ -62,7 +62,7 @@ const ArticleSchema = new Schema({
       message: 'Each hashtag must be an alphanumeric string under 30 chars.'
     }
   },
-  ArticleVisibility: {
+  ThreadVisibility: {
     type: Boolean,
     required: false,
     unique: false,
@@ -70,4 +70,4 @@ const ArticleSchema = new Schema({
   }
 });
 
-module.exports = mongoose.model("ArticleModel", ArticleSchema);
+module.exports = mongoose.model("ThreadModel", ThreadSchema);

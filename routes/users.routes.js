@@ -10,8 +10,8 @@ const upload = multer();
 
 router.get('/listed', usersController.getListedUsers);
 router.post('/auth/login', usersController.loginUser);
-
 router.post('/', usersController.createUser);
+router.get('/:id', usersController.getUserByID);
 router.put('/:id', usersController.updateUser);
 
 module.exports = router;
