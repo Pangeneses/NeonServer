@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 const ArticleSchema = new Schema({
-  AuthorID: {
+  ArticleUserID: {
     type: Schema.Types.ObjectId,
     ref: 'UserModel',
     required: true

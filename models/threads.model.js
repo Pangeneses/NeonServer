@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 const ThreadSchema = new Schema({
-  AuthorID: {
+  ThreadUserID: {
     type: Schema.Types.ObjectId,
     ref: 'UserModel',
     required: true
@@ -14,20 +14,9 @@ const ThreadSchema = new Schema({
     trim: true,
     validate: {
         validator: function(v) {
-            return /^[a-zA-Z0-9-; ]+$/.test(v);
+            return /^[a-zA-Z0-9-;?!' ]+$/.test(v);
         },
         message: props => `Thread title shouldn't include special characters.`
-    }
-  },
-  ThreadBody: {
-    type: String,
-    required: [true, `Thread requires content.`],
-    trim: true,
-    validate: {
-      validator: function (v) {
-        if (!v || v.length < 500) return false;
-      },
-      message: props => `Thread must be at least 500 characters and must not contain XML, JavaScript, or HTML tags.`
     }
   },
   ThreadImage: {
@@ -47,6 +36,12 @@ const ThreadSchema = new Schema({
     default: Date.now,
     immutable: true
   },
+  ThreadAccess: {
+    type: Number,
+    required: true,
+    min: [0, 'User Active requirement must be minimum 3 months.'],
+    max: [60, 'User Active requirement cannot be more than 60 months.']
+  },
   ThreadCategory: { 
     type: String, 
     required: true,
@@ -60,6 +55,17 @@ const ThreadSchema = new Schema({
         arr.length <= 10 &&
         arr.every(tag => typeof tag === 'string' && tag.length <= 30 && /^#[a-zA-Z0-9]{1,29}$/.test(tag)),
       message: 'Each hashtag must be an alphanumeric string under 30 chars.'
+    }
+  },
+  ThreadPosts: {
+    type: [Schema.Types.ObjectId],
+    ref: 'PostModel',
+    required: true,
+    validate: {
+      validator: function (arr) {
+        return Array.isArray(arr) && arr.length === 1;
+      },
+      message: 'Thread must be initialized with exactly one post.'
     }
   },
   ThreadVisibility: {

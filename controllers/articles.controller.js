@@ -1,108 +1,8 @@
 const mongoose = require('mongoose');
 
 const ArticleModel = require('../models/articles.model');
-const sanitizeHtml = require('sanitize-html');
 
-const sanitizeOptions = {
-  allowedTags: [
-    'b', 'i', 'em', 'strong', 'u', 'ul', 'ol', 'li',
-    'p', 'br', 'span', 'blockquote', 'code', 'pre',
-    'img', 'a', 'h1', 'h2', 'h3'
-  ],
-  allowedAttributes: {
-    '*': ['style'],
-    'a': ['href', 'name', 'target', 'rel'],
-    'img': ['src', 'alt', 'width', 'height']
-  },
-  allowedSchemes: ['http', 'https', 'data'],
-  allowedSchemesByTag: {
-    img: ['http', 'https', 'data'],
-    a: ['http', 'https', 'mailto']
-  },
-  transformTags: {
-    a: sanitizeHtml.simpleTransform('a', {
-      rel: 'noopener noreferrer',
-      target: '_blank'
-    })
-  }
-};
-
-function sanitizeBodyFull(body) {
-
-  const cleaned = sanitizeHtml(body || '', sanitizeOptions);
-
-  const plainText = cleaned.replace(/<[^>]*>/g, '');
-
-  if (!cleaned || plainText.trim().length < 500) {
-
-    return null;
-
-  }
-
-  return cleaned;
-}
-
-function sanitizeBodyStrict(body) {
-
-  const cleaned = sanitizeHtml(body || '', { allowedTags: [], allowedAttributes: {} });
-
-  if (!cleaned || cleaned.replace(/\s/g, '').length < 500) {
-
-    return null;
-
-  }
-
-  return cleaned;
-
-}
-
-function validateHashtags(tags) {
-
-  if (
-    !Array.isArray(tags.ArticleHashtags) ||
-    tags.ArticleHashtags.length > 10 ||
-    !tags.ArticleHashtags.every(tag =>
-      typeof tag === 'string' &&
-      tag.length <= 30 &&
-      /^#[a-zA-Z0-9]{1,29}$/.test(tag)
-    )
-  ) {
-  
-    throw new Error('Each hashtag must start with # and contain only letters and numbers (max 30 chars total).');
-
-  }
-
-}
-
-function validateCategory(category) {
-  
-  if (typeof category !== 'string' || category.length > 50 || !/^[a-zA-Z0-9_-]+$/.test(category)) {
-
-    throw new Error('ArticleCategory must be a non-empty string under 50 chars using letters, numbers, _ or -.');
-
-  }
-
-}
-  
-function validateImageFilename(filename) {
-
-  if (!filename) return;
-
-  const isValid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(webp|jpg)$/i.test(filename);
-
-  if (!isValid) {
-
-    throw new Error('ArticleImage must be a UUID with .webp or .jpg extension.');
-
-  }
-
-}
-
-function insertSpacesBetweenLowerUpper(text) {
-
-  return text.replace(/([a-z])([A-Z])/g, '$1 $2');
-
-}
+const sanitizers = require('../services/sanitizer.service')
 
 const newArticle = async (req, res) => {
 
@@ -111,7 +11,7 @@ const newArticle = async (req, res) => {
   try {
 
     const {
-      AuthorID,
+      ArticleUserID,
       ArticleTitle,
       ArticleBody,
       ArticleImage,
@@ -120,45 +20,63 @@ const newArticle = async (req, res) => {
       ArticleVisibility
     } = req.body;
 
-    if (!AuthorID) {
+    if (!ArticleUserID) {
 
-      return res.status(400).json({ error: 'Author is required.' });
+      return res.status(400).json({ error: 'User ID is required.' });
 
     }
-    
+
     try {
-      validateHashtags({ ArticleHashtags: ArticleHashtags || [] });
+
+      sanitizers.validateHashtags({ ArticleHashtags: ArticleHashtags || [] });
+
     } catch (e) {
+
       return res.status(400).json({ error: e.message });
+
     }
 
     try {
+
       const cleanedCategory = ArticleCategory.replace(/[\s_]/g, '');
-      validateCategory(cleanedCategory);    
-    } catch (e) {
-      return res.status(400).json({ error: e.message });
-    }
-    
-    try {
-      validateImageFilename(ArticleImage);
-    } catch (e) {
-      return res.status(400).json({ error: e.message });
-    }
-    
-    const cleanedBody = sanitizeBodyFull(ArticleBody);
 
-    if (!cleanedBody) {
+      sanitizers.validateCategory(cleanedCategory);
+
+    } catch (e) {
+
+      return res.status(400).json({ error: e.message });
+
+    }
+
+    try {
+
+      sanitizers.validateImageFilename(ArticleImage);
+
+    } catch (e) {
+
+      return res.status(400).json({ error: e.message });
+
+    }
+
+    const cleanedBody = sanitizers.sanitizeBodyFull(ArticleBody);
+
+    const he = require('he'); 
+    const plainText = cleanedBody.replace(/<[^>]*>/g, '');
+    const decodedText = he.decode(plainText); 
+    const charCount = decodedText.trim().length;
+
+    if (!cleanedBody || 500 > charCount.length) {
 
       return res.status(400).json({
 
-        error: 'Article must be at least 500 non-whitespace characters after sanitizing.'
+        error: 'Article must be at least 500 Characters.'
 
       });
 
     }
 
     const newArticle = new ArticleModel({
-      AuthorID,
+      ArticleUserID,
       ArticleTitle,
       ArticleBody: cleanedBody,
       ArticleImage,
@@ -172,7 +90,7 @@ const newArticle = async (req, res) => {
     const formatted = {
       ...savedArticle.toObject(),
       ArticleID: savedArticle._id.toString(),
-      ArticleCategory: insertSpacesBetweenLowerUpper(savedArticle.ArticleCategory),
+      ArticleCategory: sanitizers.insertSpacesBetweenLowerUpper(savedArticle.ArticleCategory),
     };
 
     return res.status(201).json({
@@ -181,7 +99,7 @@ const newArticle = async (req, res) => {
     });
 
   } catch (error) {
-    
+
     if (error.name === 'ValidationError') {
 
       return res.status(400).json({
@@ -215,7 +133,7 @@ const getArticle = async (req, res) => {
   try {
 
     const Article = await ArticleModel.findById(id)
-      .populate('AuthorID');
+      .populate('ArticleUserID');
 
     if (!Article) {
 
@@ -226,7 +144,7 @@ const getArticle = async (req, res) => {
     const formatted = {
       ...Article.toObject(),
       ArticleID: Article._id.toString(),
-      ArticleCategory: insertSpacesBetweenLowerUpper(Article.ArticleCategory)
+      ArticleCategory: sanitizers.insertSpacesBetweenLowerUpper(Article.ArticleCategory)
     };
 
     res.status(200).json({ Article: formatted });
@@ -241,40 +159,31 @@ const getArticle = async (req, res) => {
 
 };
 
-const getArticlesChunk = async (req, res) => {
+const getArticleChunk = async (req, res) => {
+
   try {
+
     let {
-      AuthorID,
+      limit,
+      lastID,
+      direction = 'down',
+      ArticleUserID,
       ArticleCategory,
       ArticleHashtags,
-      from,
-      to,
-      limit,
-      lastId,
-      direction = 'down'
+      ArticleFrom,
+      ArticleTo
     } = req.query;
 
     console.log('GET /chunk received with query:', req.query);
 
     const filter = {};
 
-    if (typeof AuthorID === 'string') {
+    if (typeof ArticleUserID === 'string' && ArticleUserID.trim() !== '') {
 
-      AuthorID = [AuthorID];
-
-    }
-
-    if (Array.isArray(AuthorID)) {
-
-      const cleanedIDs = AuthorID.filter(id => typeof id === 'string' && id.trim() !== '');
-
-      if (cleanedIDs.length > 0) {
-
-        filter.AuthorID = { $in: cleanedIDs };
-
-      }
+      filter.ArticleUserID = ArticleUserID;
 
     }
+
 
     if (
       typeof ArticleCategory === 'string' &&
@@ -308,42 +217,44 @@ const getArticlesChunk = async (req, res) => {
 
     }
 
-    if (from || to) {
+    console.log(ArticleFrom + ' ' + ArticleTo);
 
-      filter.ArticleDate = {};
+    if (
+      typeof ArticleFrom === 'string' &&
+      typeof ArticleTo === 'string' &&
+      !isNaN(Date.parse(ArticleFrom)) &&
+      !isNaN(Date.parse(ArticleTo))
+    ) {
 
-      if (from && !isNaN(Date.parse(from))) {
-
-        filter.ArticleDate.$gte = new Date(from);
-
-      }
-
-      if (to && !isNaN(Date.parse(to))) {
-
-        filter.ArticleDate.$lte = new Date(to);
-
-      }
+      filter.ArticleDate = {
+        $gte: new Date(ArticleFrom),
+        $lte: new Date(ArticleTo),
+      };
 
     }
-    
+
     const chunkLimit = Math.min(parseInt(limit) || 10, 100);
 
     direction = direction === 'up' ? 'up' : 'down';
 
-    if (lastId && mongoose.Types.ObjectId.isValid(lastId)) {
+    if (lastID && mongoose.Types.ObjectId.isValid(lastID)) {
 
       const op = direction === 'up' ? '$gt' : '$lt';
 
-      filter._id = { [op]: new mongoose.Types.ObjectId(lastId) };
+      filter._id = { [op]: new mongoose.Types.ObjectId(lastID) };
 
     }
 
     const sortOrder = direction === 'up' ? 1 : -1;
 
+    console.log(filter);
+
     const Articles = await ArticleModel.find(filter)
-      .populate('AuthorID')
+      .populate('ArticleUserID')
       .sort({ _id: sortOrder })
       .limit(chunkLimit);
+
+    console.log(Articles);
 
     const formatted = Articles.map(article => {
 
@@ -351,8 +262,8 @@ const getArticlesChunk = async (req, res) => {
 
       return {
         ...obj,
-        ArticleID: obj._id.toString(), // ✅ Add this line
-        ArticleCategory: insertSpacesBetweenLowerUpper(obj.ArticleCategory),
+        ArticleID: obj._id.toString(), 
+        ArticleCategory: sanitizers.insertSpacesBetweenLowerUpper(obj.ArticleCategory),
       };
 
     });
@@ -380,7 +291,7 @@ const putArticle = async (req, res) => {
   }
 
   try {
-    
+
     const existing = await ArticleModel.findById(id);
 
     if (!existing) {
@@ -390,34 +301,53 @@ const putArticle = async (req, res) => {
     }
 
     const updates = { ...req.body };
-    
+
     try {
-      validateHashtags({ ArticleHashtags: updates.ArticleHashtags || [] });    
+
+      validateHashtags({ ArticleHashtags: updates.ArticleHashtags || [] });
+
     } catch (e) {
+
       return res.status(400).json({ error: e.message });
+
     }
-    
+
     try {
-      validateCategory(updates.ArticleCategory);    
+
+      validateCategory(updates.ArticleCategory);
+
     } catch (e) {
+
       return res.status(400).json({ error: e.message });
+
     }
-    
+
     try {
-      validateImageFilename(updates.ArticleImage);    
+
+      validateImageFilename(updates.ArticleImage);
+
     } catch (e) {
+
       return res.status(400).json({ error: e.message });
+
     }
-    
+
     if (updates.ArticleBody) {
 
-      const cleanedBody = sanitizeBodyFull(updates.ArticleBody);
+      const cleanedBody = sanitizers.sanitizeBodyFull(updates.ArticleBody);
 
-      if (!cleanedBody) {
+      const he = require('he'); 
+      const plainText = cleanedBody.replace(/<[^>]*>/g, '');
+      const decodedText = he.decode(plainText); 
+      const charCount = decodedText.trim().length;
+
+      console.log(cleanedBody)
+
+      if (!cleanedBody || 500 > charCount.length) {
 
         return res.status(400).json({
 
-          error: 'ArticleBody must be at least 500 characters after sanitizing.'
+          error: 'Article must be at least 500 Characters.'
 
         });
 
@@ -430,12 +360,12 @@ const putArticle = async (req, res) => {
     const updated = await ArticleModel.findByIdAndUpdate(id, updates, {
       new: true,
       runValidators: true
-    }).populate('AuthorID');
+    }).populate('ArticleUserID');
 
     const formatted = {
       ...updated.toObject(),
       ArticleID: updated._id.toString(),
-      ArticleCategory: insertSpacesBetweenLowerUpper(updated.ArticleCategory)
+      ArticleCategory: sanitizers.insertSpacesBetweenLowerUpper(updated.ArticleCategory)
     };
 
     res.status(200).json({ message: 'Article updated', Article: formatted });
@@ -461,7 +391,7 @@ const patchArticle = async (req, res) => {
   }
 
   try {
-    
+
     const existing = await ArticleModel.findById(id);
 
     if (!existing) {
@@ -473,35 +403,54 @@ const patchArticle = async (req, res) => {
     const updates = { ...req.body };
 
     try {
-      validateHashtags({ ArticleHashtags: updates.ArticleHashtags || [] });    
+
+      validateHashtags({ ArticleHashtags: updates.ArticleHashtags || [] });
+
     } catch (e) {
+
       return res.status(400).json({ error: e.message });
+
     }
-    
+
     try {
-      validateCategory(updates.ArticleCategory);    
+      
+      validateCategory(updates.ArticleCategory);
+    
     } catch (e) {
+    
       return res.status(400).json({ error: e.message });
+    
     }
-    
+
     try {
-      validateImageFilename(updates.ArticleImage);    
+    
+      validateImageFilename(updates.ArticleImage);
+    
     } catch (e) {
+    
       return res.status(400).json({ error: e.message });
+    
     }
 
     if (updates.ArticleBody) {
 
-      const cleanedBody = sanitizeBodyFull(updates.ArticleBody);
-
-      if (!cleanedBody) {
-
+      const cleanedBody = sanitizers.sanitizeBodyFull(updates.ArticleBody);
+      
+      const he = require('he'); 
+      const plainText = cleanedBody.replace(/<[^>]*>/g, '');
+      const decodedText = he.decode(plainText); 
+      const charCount = decodedText.trim().length;
+      
+      console.log(cleanedBody)
+      
+      if (!cleanedBody || 500 > charCount.length) {
+      
         return res.status(400).json({
-
-          error: 'ArticleBody must be at least 500 characters after sanitizing.'
-
+        
+          error: 'Article must be at least 500 Characters.'
+        
         });
-
+      
       }
 
       updates.ArticleBody = cleanedBody;
@@ -511,12 +460,12 @@ const patchArticle = async (req, res) => {
     const updated = await ArticleModel.findByIdAndUpdate(id, updates, {
       new: true,
       runValidators: true
-    }).populate('AuthorID');
+    }).populate('ArticleUserID');
 
     const formatted = {
       ...updated.toObject(),
       ArticleID: updated._id.toString(),
-      ArticleCategory: insertSpacesBetweenLowerUpper(updated.ArticleCategory)
+      ArticleCategory: sanitizers.insertSpacesBetweenLowerUpper(updated.ArticleCategory)
     };
 
     res.status(200).json({ message: 'Article updated', Article: formatted });
@@ -560,14 +509,14 @@ const deleteArticle = async (req, res) => {
     res.status(500).json({ error: 'Failed to delete article' });
 
   }
-  
+
 };
 
 module.exports = {
-    newArticle,
-    getArticlesChunk,
-    getArticle,
-    putArticle,
-    patchArticle,
-    deleteArticle
+  newArticle,
+  getArticleChunk,
+  getArticle,
+  putArticle,
+  patchArticle,
+  deleteArticle
 }

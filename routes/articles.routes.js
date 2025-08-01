@@ -1,17 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
 
 // const authorize = require('../middleware/authorize.middleware')
 const articlesController = require('../controllers/articles.controller');
-
-const upload = multer();
 
 // Create a new article
 router.post('/', articlesController.newArticle);
 
 // Get a paginated chunk of articles
-router.get('/chunk', articlesController.getArticlesChunk);
+router.get('/chunk', articlesController.getArticleChunk);
 
 // Get a single article by ID — keep this *after* more specific routes!
 router.get('/:id', articlesController.getArticle);

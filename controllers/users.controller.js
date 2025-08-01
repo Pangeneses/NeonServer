@@ -1,13 +1,61 @@
+const mongoose = require('mongoose');
+
 const UserModel = require('../models/users.model');
 const bcrypt = require('bcrypt');
 
-const getListedUsers = async (req, res) => {
+const sanitizers = require('../services/sanitizer.service')
+
+const scanUsers = async (req, res) => {
+
+  const flags = "u";
 
   try {
 
-    const users = await UserModel.find({}, { _id: 1, UserName: 1 });
+    const {
+      regex = '',
+      cursor = '',
+      dir = 'down',
+      limit = 10
+    } = req.query;
 
-    const formatted = users.map(u => ({
+    const query = {};
+
+    if (regex) {
+
+      query.UserName = sanitizers.tryCreateRegex(regex, flags || "");
+
+    } else {
+
+      query.UserName = sanitizers.tryCreateRegex(".*", flags || "");
+
+    }
+
+    if (cursor) {
+
+      try {
+
+        const objectId = new mongoose.Types.createFromHexString(cursor);
+
+        query._id = dir === 'down' ? { $gt: objectId } : { $lt: objectId };
+
+      } catch (e) {
+
+        return res.status(400).json({ error: 'Invalid cursor ID' });
+
+      }
+
+    }
+
+    const sortDirection = dir === 'down' ? 1 : -1;
+
+    const users = await UserModel
+      .find(query, { _id: 1, UserName: 1 })
+      .sort({ _id: sortDirection })
+      .limit(parseInt(limit, 10));
+
+    const result = dir === 'up' ? users.reverse() : users;
+
+    const formatted = result.map(u => ({
       ID: u._id,
       UserName: u.UserName
     }));
@@ -16,9 +64,9 @@ const getListedUsers = async (req, res) => {
 
   } catch (err) {
 
-    console.error('Error fetching listed users:', err);
+    console.error('Error scanning users:', err);
 
-    res.status(500).json({ error: 'Failed to fetch users' });
+    res.status(500).json({ error: 'Failed to scan users' });
 
   }
 
@@ -187,7 +235,7 @@ const updateUser = async (req, res) => {
 };
 
 module.exports = {
-  getListedUsers,
+  scanUsers,
   loginUser,
   createUser,
   getUserByID,
