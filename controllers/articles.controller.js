@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+const UserModel = require('../models/users.model');
 const ArticleModel = require('../models/articles.model');
 
 const sanitizers = require('../services/sanitizer.service')
@@ -60,12 +61,12 @@ const newArticle = async (req, res) => {
 
     const cleanedBody = sanitizers.sanitizeBodyFull(ArticleBody);
 
-    const he = require('he'); 
+    const he = require('he');
     const plainText = cleanedBody.replace(/<[^>]*>/g, '');
-    const decodedText = he.decode(plainText); 
+    const decodedText = he.decode(plainText);
     const charCount = decodedText.trim().length;
 
-    if (!cleanedBody || 500 > charCount.length) {
+    if (!cleanedBody || 500 > charCount) {
 
       return res.status(400).json({
 
@@ -174,8 +175,6 @@ const getArticleChunk = async (req, res) => {
       ArticleTo
     } = req.query;
 
-    console.log('GET /chunk received with query:', req.query);
-
     const filter = {};
 
     if (typeof ArticleUserID === 'string' && ArticleUserID.trim() !== '') {
@@ -217,8 +216,6 @@ const getArticleChunk = async (req, res) => {
 
     }
 
-    console.log(ArticleFrom + ' ' + ArticleTo);
-
     if (
       typeof ArticleFrom === 'string' &&
       typeof ArticleTo === 'string' &&
@@ -226,9 +223,15 @@ const getArticleChunk = async (req, res) => {
       !isNaN(Date.parse(ArticleTo))
     ) {
 
+      const fromDate = new Date(ArticleFrom);
+      fromDate.setUTCHours(0, 0, 0, 0);
+
+      const toDate = new Date(ArticleTo);
+      toDate.setUTCHours(23, 59, 59, 999);
+
       filter.ArticleDate = {
-        $gte: new Date(ArticleFrom),
-        $lte: new Date(ArticleTo),
+        $gte: fromDate,
+        $lte: toDate,
       };
 
     }
@@ -241,32 +244,34 @@ const getArticleChunk = async (req, res) => {
 
       const op = direction === 'up' ? '$gt' : '$lt';
 
-      filter._id = { [op]: new mongoose.Types.ObjectId(lastID) };
+      filter._id = { [op]: new mongoose.Types.createFromHexString(lastID) };
 
     }
 
     const sortOrder = direction === 'up' ? 1 : -1;
-
-    console.log(filter);
 
     const Articles = await ArticleModel.find(filter)
       .populate('ArticleUserID')
       .sort({ _id: sortOrder })
       .limit(chunkLimit);
 
-    console.log(Articles);
+    const formatted = await Promise.all(
+      Articles.map(async (article) => {
 
-    const formatted = Articles.map(article => {
+        const obj = article.toObject();
 
-      const obj = article.toObject();
+        const user = await UserModel.findById(obj.AuthorID).select('UserName');
 
-      return {
-        ...obj,
-        ArticleID: obj._id.toString(), 
-        ArticleCategory: sanitizers.insertSpacesBetweenLowerUpper(obj.ArticleCategory),
-      };
+        return {
+          ...obj,
+          ArticleID: obj._id.toString(),
+          ArticleUserName: user?.UserName || 'Unknown',
+          ArticleCategory: sanitizers.insertSpacesBetweenLowerUpper(obj.ArticleCategory),
+        };
 
-    });
+      })
+
+    );
 
     return res.status(200).json({ Articles: formatted });
 
@@ -336,14 +341,14 @@ const putArticle = async (req, res) => {
 
       const cleanedBody = sanitizers.sanitizeBodyFull(updates.ArticleBody);
 
-      const he = require('he'); 
+      const he = require('he');
       const plainText = cleanedBody.replace(/<[^>]*>/g, '');
-      const decodedText = he.decode(plainText); 
+      const decodedText = he.decode(plainText);
       const charCount = decodedText.trim().length;
 
       console.log(cleanedBody)
 
-      if (!cleanedBody || 500 > charCount.length) {
+      if (!cleanedBody || 500 > charCount) {
 
         return res.status(400).json({
 
@@ -413,44 +418,44 @@ const patchArticle = async (req, res) => {
     }
 
     try {
-      
+
       validateCategory(updates.ArticleCategory);
-    
+
     } catch (e) {
-    
+
       return res.status(400).json({ error: e.message });
-    
+
     }
 
     try {
-    
+
       validateImageFilename(updates.ArticleImage);
-    
+
     } catch (e) {
-    
+
       return res.status(400).json({ error: e.message });
-    
+
     }
 
     if (updates.ArticleBody) {
 
       const cleanedBody = sanitizers.sanitizeBodyFull(updates.ArticleBody);
-      
-      const he = require('he'); 
+
+      const he = require('he');
       const plainText = cleanedBody.replace(/<[^>]*>/g, '');
-      const decodedText = he.decode(plainText); 
+      const decodedText = he.decode(plainText);
       const charCount = decodedText.trim().length;
-      
+
       console.log(cleanedBody)
-      
-      if (!cleanedBody || 500 > charCount.length) {
-      
+
+      if (!cleanedBody || 500 > charCount) {
+
         return res.status(400).json({
-        
+
           error: 'Article must be at least 500 Characters.'
-        
+
         });
-      
+
       }
 
       updates.ArticleBody = cleanedBody;

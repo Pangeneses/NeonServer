@@ -19,18 +19,6 @@ const ThreadSchema = new Schema({
         message: props => `Thread title shouldn't include special characters.`
     }
   },
-  ThreadImage: {
-    type: String,
-    required: false,
-    trim: true, 
-    validate: {
-      validator: function (v) {
-        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(webp|jpg)$/i.test(v);
-      },
-      message: props => `ThreadImage must be a UUID with .webp or .jpg extension.`
-    },
-    default: "d741b779-9c57-472a-a983-5c1dcaef7426.webp"
-  },
   ThreadDate: {
     type: Date,
     default: Date.now,
@@ -63,7 +51,7 @@ const ThreadSchema = new Schema({
     required: true,
     validate: {
       validator: function (arr) {
-        return Array.isArray(arr) && arr.length === 1;
+        return Array.isArray(arr) && arr.length >= 1;
       },
       message: 'Thread must be initialized with exactly one post.'
     }

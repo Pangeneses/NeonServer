@@ -4,10 +4,10 @@ const router = express.Router();
 // const authorize = require('../middleware/authorize.middleware')
 const postsController = require('../controllers/posts.controller');
 
-// Append post to post in post
-router.post('/', postsController.newThread);
+// Get thread posts
+router.post('/', postsController.newPost);
 
-// Get a paginated chunk of posts in post
-router.get('/chunk', postsController.getPostsChunk);
+// Get thread posts
+router.get('/batch', postsController.getBatch);
 
 module.exports = router;

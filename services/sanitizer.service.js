@@ -47,12 +47,6 @@ function sanitizeBodyFull(body) {
 
   const plainText = cleaned.replace(/<[^>]*>/g, '');
 
-  if (!cleaned || plainText.trim().length < 500) {
-
-    return null;
-
-  }
-
   return cleaned;
 
 }

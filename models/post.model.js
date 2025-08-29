@@ -9,11 +9,11 @@ const PostSchema = new Schema({
     required: true,
     unique: false
   },
-  PostContent: {
+  PostBody: {
     type: String,
     required: true,
     trim: false,
-    minlength: 150,
+    minlength: 0,
     maxlength: 3000,
     unique: false
   },

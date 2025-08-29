@@ -4,6 +4,9 @@ const router = express.Router();
 // const authorize = require('../middleware/authorize.middleware')
 const threadsController = require('../controllers/threads.controller');
 
+// Create new Thread
+router.post('/', threadsController.newThread);
+
 // Get a paginated chunk of threads
 router.get('/chunk', threadsController.getThreadChunk);
 
