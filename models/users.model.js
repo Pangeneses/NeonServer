@@ -172,6 +172,7 @@ const UserSchema = new Schema({
           return /^((?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,30})$/.test(v);
         }
         if (!v || v.trim() === '') return true;
+        if (v && v.startsWith("$2b$")) return true;
         return /^((?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,30})$/.test(v);
       },
       message: () => `Password must have cap, no cap, 8 char, special char.`
@@ -186,6 +187,7 @@ const UserSchema = new Schema({
           return /^((?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,30})$/.test(v);
         }
         if (!v || v.trim() === '') return true;
+        if (v && v.startsWith("$2b$")) return true;
         return /^((?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,30})$/.test(v);
       },
       message: () => `Password must have cap, no cap, 8 char, special char.`
