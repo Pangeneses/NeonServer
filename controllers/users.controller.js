@@ -77,11 +77,11 @@ const loginUser = async (req, res) => {
   const { UserName, Password } = req.body;
 
   try {
-    
+
     if (!UserName || !Password) {
-      
+
       return res.status(400).json({ success: false, message: "Missing credentials" });
-  
+
     }
 
     const user = await UserModel.findOne({ UserName });
@@ -125,7 +125,7 @@ const createUser = async (req, res) => {
   const formData = req.body;
 
   if (!req.body.Password && !req.body.ReEnter) {
-    
+
     return res.status(400).json({ success: false, message: 'Password is required.' });
 
   }
@@ -137,7 +137,7 @@ const createUser = async (req, res) => {
     await newUser.save();
 
     const userObj = newUser.toObject();
-  
+
     userObj.ID = userObj._id;
 
     delete userObj._id;
@@ -180,17 +180,23 @@ const getUserByID = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
 
   }
-  
+
 };
 
 const updateUser = async (req, res) => {
+
   const { id } = req.params;
   const updateData = { ...req.body };
 
-  // ✅ Strip empty password fields
-  if (!updateData.Password || updateData.Password.trim() === "") {
+  if (!updateData.Password ||
+    updateData.Password.trim() === "" ||
+    !updateData.ReEnter ||
+    updateData.ReEnter.trim() === "") {
+
     delete updateData.Password;
+
     delete updateData.ReEnter;
+    
   }
 
   try {
