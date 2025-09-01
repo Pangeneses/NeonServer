@@ -31,6 +31,10 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get('/', (req, res) => {
+  res.send('API is running 🚀');
+});
+
 app.use('/api', routes);
 
 app.use('/images', express.static('images'));
