@@ -184,54 +184,46 @@ const getUserByID = async (req, res) => {
 };
 
 const updateUser = async (req, res) => {
-  
   const { id } = req.params;
-  
   const updateData = { ...req.body };
 
-  if (updateData.Password === '') {
-    
+  // ✅ Strip empty password fields
+  if (!updateData.Password || updateData.Password.trim() === "") {
     delete updateData.Password;
     delete updateData.ReEnter;
-
   }
 
   try {
-
     const user = await UserModel.findById(id);
-
     if (!user) {
-
       return res.status(404).json({ success: false, message: 'User not found' });
-
     }
 
     Object.entries(updateData).forEach(([key, value]) => {
-
       user[key] = value;
-
     });
 
     await user.save();
 
     const userObj = user.toObject();
-
     userObj.ID = userObj._id;
-
     delete userObj._id;
     delete userObj.Password;
     delete userObj.ReEnter;
 
-    return res.status(200).json({ success: true, message: 'User updated successfully', user: userObj });
-
+    return res.status(200).json({
+      success: true,
+      message: 'User updated successfully',
+      user: userObj
+    });
   } catch (error) {
-
     console.error('Update error:', error);
-
-    return res.status(500).json({ success: false, message: 'Error updating user', error });
-
+    return res.status(500).json({
+      success: false,
+      message: 'Error updating user',
+      error
+    });
   }
-  
 };
 
 module.exports = {
