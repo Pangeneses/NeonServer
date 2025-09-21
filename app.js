@@ -8,7 +8,7 @@ const routes = require('./routes');
 const app = express();
 
 app.use(cors({
-  origin: ['http://localhost:4200', 'https://reddragonsociety.com', 'https://www.reddragonsociety.com'],
+  origin: ['http://localhost:4200', 'https://your-url.com', 'https://www.your-url.com'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: false,
