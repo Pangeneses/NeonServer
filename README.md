@@ -1,0 +1,2 @@
+- Add MONGODB_URI
+- give permission for your domains
